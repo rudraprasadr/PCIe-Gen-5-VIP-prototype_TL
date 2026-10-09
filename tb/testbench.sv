@@ -149,6 +149,8 @@ endclass
 `include "siv_pcie_device_agent.sv"
 `include "siv_pcie_env.sv"
 `include "siv_pcie_base_test.sv"
+`include "siv_pcie_cfg0_test.sv"
+`include "siv_pcie_io_test.sv"
 
 //======================================================
 // Unified Tests ONLY (NO separate PL/DL/TL tests)

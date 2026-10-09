@@ -478,7 +478,32 @@ class siv_pcie_tl_sequence_items extends uvm_sequence_item;
   //Constraint: Requester ID
   constraint req_c{
     header_config.requester_id==11;
-  }	  
+  }	 
+  constraint tc_zero{
+    header_config.tc==0;
+    header_io.tc==0;
+    }
+  constraint io_rules{
+      header_io.th==0;
+      header_io.attr1==0;
+      header_io.attr2==0;
+      header_io.at==0;
+      header_io.len ==1;
+      header_io.last_dw==0;
+    }
+  constraint cfg_rules{
+      header_config.th==0;
+      header_config.attr1==0;
+      header_config.attr2==0;
+      header_config.at==0;
+      header_config.len ==1;
+      header_config.last_dw==0;
+    }  
+  constraint ep_all{
+    soft header_config.ep==0;
+    soft header_io.ep==0;
+    soft header_mem.ep==0;
+    }
   //Constraint: prefix_size
   constraint prefix_size_c{
     prefix.size()==0;  // by default prefix is zero

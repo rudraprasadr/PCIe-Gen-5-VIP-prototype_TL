@@ -62,6 +62,8 @@ class siv_pcie_tl_seq extends uvm_sequence #(siv_pcie_tl_sequence_items);
       
       default : $display("Invalid RCB value");
     endcase
+   /* if(req.pkt_type ==1) req.header_config.tc=0;
+    else if(req.pkt_type ==2) req.header_io.tc=0;*/
     $display("Value of rcb_in_bytes from task post_body is = %0d", rcb_in_bytes);     
   endtask
 endclass
@@ -84,7 +86,7 @@ class io_wr_rd_seq extends siv_pcie_tl_seq;
       						req.header_io.td ==1;
       						req.header_io.address == 32'h0000_1000;
                             req.header_io.len ==1;
-                            req.header_io.tc == 2;
+                            //req.header_io.tc == 2;
                             req.header_io.last_dw ==4'b0000;
                             req.header_io.first_dw ==4'b1111;
                             req.payload_i.size() == req.header_io.len;});
@@ -97,7 +99,7 @@ class io_wr_rd_seq extends siv_pcie_tl_seq;
       						req.header_io.td == 1;
       						req.header_io.address == 32'h0000_1000;
       						req.header_io.len == 1;
-                            req.header_io.tc == 3;
+                           // req.header_io.tc == 3;
                             req.header_io.last_dw ==4'b0000;
                             req.header_io.first_dw ==4'b1111;
                             req.payload_i.size() == req.header_io.len;});       
