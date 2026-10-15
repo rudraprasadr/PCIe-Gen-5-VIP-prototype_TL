@@ -9,7 +9,7 @@
 +incdir+src/tl/reg
 +incdir+src/tl/standalone
 +incdir+src/env
-+incdir+tests
++incdir+tests/tl
 +incdir+tests/dl
 +incdir+tb
 +incdir+tb/standalone

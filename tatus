@@ -1,0 +1,321 @@
+diff --git a/src/tl/siv_tl_driver.sv b/src/tl/siv_tl_driver.sv
+index 005d346..2af17f1 100644
+--- a/src/tl/siv_tl_driver.sv
++++ b/src/tl/siv_tl_driver.sv
+@@ -223,10 +223,17 @@ class siv_pcie_tl_driver extends uvm_driver #(siv_pcie_tl_sequence_items);
+       forever begin
+         siv_pcie_tl_sequence_items req;
+         seq_item_port.get_next_item(req);
++        `uvm_info("DRIVER_REQUEST TL PACKET TYPE",
++  $sformatf("pkt_type=%0d TLP_c=%p TLP_m=%p",
++            req.pkt_type, req.TLP_c, req.TLP_m),
++  UVM_NONE)
+         `uvm_info("here0","here",UVM_NONE)
+         if(req.pkt_type==1) dl_rc_sending_que=req.TLP_c;
+         else if(req.pkt_type==2) dl_rc_sending_que=req.TLP_m;
+-        else if(req.pkt_type==3) dl_rc_sending_que=req.TLP_i;
++        else if(req.pkt_type==3)  begin 
++          dl_rc_sending_que=req.TLP_i;
++        `uvm_info("TC VALUE CHECK",$sformatf("TC VALUE FOR IO=%0h",req.header_io.tc),UVM_NONE)
++          end
+         else if(req.pkt_type==5) dl_rc_sending_que=req.TLP_msg;
+ //         if(vif.rst == 0);
+ //         tl_driver_dl_put_port.put(dl_rc_sending_que);
+@@ -562,7 +569,7 @@ class siv_pcie_tl_driver extends uvm_driver #(siv_pcie_tl_sequence_items);
+       // wait(clps_done.triggered); // waiting for the config packet needs to complete 
+       wait(dlcmsm_rc_state==DL_ACTIVE);
+ 
+-      `uvm_info("rc is here","hello ",UVM_NONE)
++      //`uvm_info("rc is here","hello ",UVM_NONE)
+       `uvm_info("TL_DRV","on tlp rx side RC",UVM_NONE)
+ 
+       // rx_cpl_pkt.delete();
+@@ -572,28 +579,27 @@ class siv_pcie_tl_driver extends uvm_driver #(siv_pcie_tl_sequence_items);
+ 
+           //           if(vif.rx_data!=0)
+             begin
+-              `uvm_info("flag","pass2",UVM_NONE)
++          //    `uvm_info("flag","pass2",UVM_NONE)
+               dw_pkt::get_q(tl_driver_dl_get_port, tl_rc_getting_que);
+-//               tl_driver_dl_get_port.get(tl_rc_getting_que);
+-              `uvm_info("INSIDE TL DRIVER",$sformatf("The RC Got the completion=%p",tl_rc_getting_que),UVM_NONE)
++               //tl_driver_dl_get_port.get(tl_rc_getting_que);
++              `uvm_info("INSIDE TL DRIVER AND TL RC GETTING QUE",$sformatf("The RC Got the completion=%p",tl_rc_getting_que),UVM_NONE)
+ 
+-              rx_cpl_pkt.push_back(vif.rx_data); // tl_ep_getting_que in this queue, storing the rx_data
++              rx_cpl_pkt=tl_rc_getting_que; // tl_ep_getting_que in this queue, storing the rx_data
+ 
+-              `uvm_info("pkt info",$sformatf("size %0d  rx_tlp=%p",tl_ep_getting_que.size,tl_ep_getting_que),UVM_NONE)
++               `uvm_info("pkt info",$sformatf("size %0d  rx_tlp=%p",tl_ep_getting_que.size,tl_ep_getting_que),UVM_NONE)
+ 
+               //             `define pkt_len(PAYLOAD, HS, LENGTH, TD)  // (30, 29, [9:0], 15)
+               `pkt_len(rx_cpl_pkt[0][30], rx_cpl_pkt[0][29], rx_cpl_pkt[0][9:0], rx_cpl_pkt[0][15])
+ 
+-              for(int i=0; i < pkt_len - 1; i++)
++              /*for(int i=0; i < pkt_len - 1; i++)
+                 begin
+                   @(posedge vif.clk)
+                   #0
+                   //                   `uvm_info("pkt info",$sformatf("size %0d  rx_tlp=%p",rx_cpl_pkt.size,rx_cpl_pkt),UVM_NONE)
+                   rx_cpl_pkt.push_back(vif.rx_data);
+-                end
+-              `uvm_info("pkt info",$sformatf("size %0d  rx_tlp=%p",rx_cpl_pkt.size,rx_cpl_pkt),UVM_NONE)
++                end*/
++              `uvm_info("pkt info and rx_tlp_pkt",$sformatf("size %0d  rx_tlp=%p",rx_cpl_pkt.size,rx_cpl_pkt),UVM_NONE)
+ 
+-              `uvm_info("pkt info",$sformatf("0th place %0h",rx_cpl_pkt[0][28:24]),UVM_NONE)
+ 
+ 
+ 
+@@ -611,7 +617,7 @@ class siv_pcie_tl_driver extends uvm_driver #(siv_pcie_tl_sequence_items);
+                   cfg_sem.put();  // after receiving the cpl then only put the key
+                 end          
+ 
+-                if (rx_cpl_pkt[0][31:29] == 2) begin   // checking for pkt is cplD
++                else if (rx_cpl_pkt[0][31:29] == 2) begin   // checking for pkt is cplD
+                   // Extract and validate TC from completion
+                   validate_tc_vc_before_packet(rx_cpl_pkt[0][22:20], "RX_COMPLETION_DATA");
+                   received_splits++;
+diff --git a/src/tl/siv_tl_seq.sv b/src/tl/siv_tl_seq.sv
+index 45e9b1f..51e9769 100644
+--- a/src/tl/siv_tl_seq.sv
++++ b/src/tl/siv_tl_seq.sv
+@@ -62,6 +62,8 @@ class siv_pcie_tl_seq extends uvm_sequence #(siv_pcie_tl_sequence_items);
+       
+       default : $display("Invalid RCB value");
+     endcase
++   /* if(req.pkt_type ==1) req.header_config.tc=0;
++    else if(req.pkt_type ==2) req.header_io.tc=0;*/
+     $display("Value of rcb_in_bytes from task post_body is = %0d", rcb_in_bytes);     
+   endtask
+ endclass
+@@ -84,7 +86,7 @@ class io_wr_rd_seq extends siv_pcie_tl_seq;
+       						req.header_io.td ==1;
+       						req.header_io.address == 32'h0000_1000;
+                             req.header_io.len ==1;
+-                            req.header_io.tc == 2;
++                            //req.header_io.tc == 2;
+                             req.header_io.last_dw ==4'b0000;
+                             req.header_io.first_dw ==4'b1111;
+                             req.payload_i.size() == req.header_io.len;});
+@@ -97,7 +99,7 @@ class io_wr_rd_seq extends siv_pcie_tl_seq;
+       						req.header_io.td == 1;
+       						req.header_io.address == 32'h0000_1000;
+       						req.header_io.len == 1;
+-                            req.header_io.tc == 3;
++                           // req.header_io.tc == 3;
+                             req.header_io.last_dw ==4'b0000;
+                             req.header_io.first_dw ==4'b1111;
+                             req.payload_i.size() == req.header_io.len;});       
+diff --git a/src/tl/siv_tl_seq_item.sv b/src/tl/siv_tl_seq_item.sv
+index 68679c6..62a246f 100644
+--- a/src/tl/siv_tl_seq_item.sv
++++ b/src/tl/siv_tl_seq_item.sv
+@@ -478,7 +478,32 @@ class siv_pcie_tl_sequence_items extends uvm_sequence_item;
+   //Constraint: Requester ID
+   constraint req_c{
+     header_config.requester_id==11;
+-  }	  
++  }	 
++  constraint tc_zero{
++    header_config.tc==0;
++    header_io.tc==0;
++    }
++  constraint io_rules{
++      header_io.th==0;
++      header_io.attr1==0;
++      header_io.attr2==0;
++      header_io.at==0;
++      header_io.len ==1;
++      header_io.last_dw==0;
++    }
++  constraint cfg_rules{
++      header_config.th==0;
++      header_config.attr1==0;
++      header_config.attr2==0;
++      header_config.at==0;
++      header_config.len ==1;
++      header_config.last_dw==0;
++    }  
++  constraint ep_all{
++    soft header_config.ep==0;
++    soft header_io.ep==0;
++    soft header_mem.ep==0;
++    }
+   //Constraint: prefix_size
+   constraint prefix_size_c{
+     prefix.size()==0;  // by default prefix is zero
+diff --git a/tb/testbench.sv b/tb/testbench.sv
+index c814055..3e651ca 100644
+--- a/tb/testbench.sv
++++ b/tb/testbench.sv
+@@ -149,6 +149,8 @@ endclass
+ `include "siv_pcie_device_agent.sv"
+ `include "siv_pcie_env.sv"
+ `include "siv_pcie_base_test.sv"
++`include "siv_pcie_cfg0_test.sv"
++`include "siv_pcie_io_test.sv"
+ 
+ //======================================================
+ // Unified Tests ONLY (NO separate PL/DL/TL tests)
+diff --git a/tests/siv_pcie_cfg0_test.sv b/tests/siv_pcie_cfg0_test.sv
+new file mode 100644
+index 0000000..b5a6727
+--- /dev/null
++++ b/tests/siv_pcie_cfg0_test.sv
+@@ -0,0 +1,78 @@
++//--------------------------------------------------------------
++// Base Config Test
++//--------------------------------------------------------------
++class siv_pcie_cfg0_test extends siv_pcie_base_test;
++  `uvm_component_utils(siv_pcie_cfg0_test)
++
++  config_wr_rd_seq  rc_seq;
++  mem_wr_rd_seq  ep_seq;
++  reg_seq            regseq;
++
++  // ------------------------------------------------------------
++  // Constructor
++  // ------------------------------------------------------------
++  function new(string name="siv_pcie_cfg0_test", uvm_component parent=null);
++    super.new(name, parent);
++  endfunction
++
++  // ------------------------------------------------------------
++  // Build phase
++  // ------------------------------------------------------------
++  function void build_phase(uvm_phase phase);
++    super.build_phase(phase);
++
++  endfunction
++
++  // ----------------------------------------
++  // Task to Run TL sequences
++  // ----------------------------------------
++  task run_TL(uvm_phase phase);
++    // Create all sequences
++    regseq = reg_seq::type_id::create("regseq");
++    rc_seq = config_wr_rd_seq::type_id::create("rc_seq");
++    ep_seq = mem_wr_rd_seq::type_id::create("ep_seq");
++    phase.raise_objection(this);
++
++    regseq.start(env.magent.sqr);
++    fork
++      begin 
++        rc_seq.start(env.rc_agent.tl_agent.sequencer);
++        ep_seq.start(env.ep_agent.tl_agent.sequencer);
++      end
++    join
++
++    phase.drop_objection(this);   
++
++  endtask
++
++
++  // ----------------------------------------
++  // Task to Run DL sequences
++  // ----------------------------------------
++  task run_DL(uvm_phase phase);
++    super.run_DL(phase);
++  endtask
++
++  // ----------------------------------------
++  // Task to Run PL sequences
++  // ----------------------------------------
++
++  task run_PL(uvm_phase phase);
++    super.run_PL(phase);
++  endtask
++
++  // Run phase: launch all three "primary" sequences in parallel
++
++  // ----------------------------------------
++  // Run ALL layer sequences
++  // ----------------------------------------
++  task run_phase(uvm_phase phase);
++    fork
++      run_TL(phase);
++      run_DL(phase);
++      run_PL(phase);
++    join
++  endtask
++
++endclass
++//--------------------------------------------------------------
+diff --git a/tests/siv_pcie_io_test.sv b/tests/siv_pcie_io_test.sv
+new file mode 100644
+index 0000000..e1b72e3
+--- /dev/null
++++ b/tests/siv_pcie_io_test.sv
+@@ -0,0 +1,71 @@
++class siv_io_test extends siv_pcie_base_test;
++  `uvm_component_utils(siv_io_test)
++  // ------------------------------------------------------------
++  // Environment
++  // ------------------------------------------------------------
++  // ------------------------------------------------------------
++  // Sequences
++  // ------------------------------------------------------------
++  io_wr_rd_seq  rc_seq;
++  io_wr_rd_seq  ep_seq;
++  reg_seq            regseq;
++
++  // ------------------------------------------------------------
++  // Constructor
++  // ------------------------------------------------------------
++  function new(string name="siv_io_test", uvm_component parent=null);
++    super.new(name, parent);
++  endfunction
++  // ------------------------------------------------------------
++  // Build phase
++  // ------------------------------------------------------------
++  function void build_phase(uvm_phase phase);
++    super.build_phase(phase);
++
++    // Create sequences
++   // rc_seq    = io_wr_rd_seq ::type_id::create("rc_seq");
++   // ep_seq    = io_wr_rd_seq ::type_id::create("ep_seq");
++  endfunction
++  // ----------------------------------------
++  // Task to Run TL sequences
++  // ----------------------------------------
++  task run_TL(uvm_phase phase);
++    // Create all sequences
++    regseq = reg_seq::type_id::create("regseq");
++    rc_seq = io_wr_rd_seq::type_id::create("rc_seq");
++    ep_seq = io_wr_rd_seq::type_id::create("ep_seq");
++    phase.raise_objection(this);
++    regseq.start(env.magent.sqr);
++    fork
++      begin 
++        rc_seq.start(env.rc_agent.tl_agent.sequencer);
++        ep_seq.start(env.ep_agent.tl_agent.sequencer);
++      end
++    join
++    phase.drop_objection(this);   
++  endtask
++
++  // ----------------------------------------
++  // Task to Run DL sequences
++  // ----------------------------------------
++  task run_DL(uvm_phase phase);
++  super.run_DL(phase);
++  endtask
++  // ----------------------------------------
++  // Task to Run PL sequences
++  // ----------------------------------------
++  task run_PL(uvm_phase phase);
++   super.run_PL(phase);
++  endtask
++  // Run phase: launch all three "primary" sequences in parallel
++  // ----------------------------------------
++  // Run ALL layer sequences
++  // ----------------------------------------
++  task run_phase(uvm_phase phase);
++    fork
++      run_TL(phase);
++      run_DL(phase);
++      run_PL(phase);
++    join
++  endtask
++endclass

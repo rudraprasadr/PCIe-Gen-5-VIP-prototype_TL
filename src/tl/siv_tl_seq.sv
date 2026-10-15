@@ -983,11 +983,84 @@ endclass
 
 
 
+//BACK TO BACK MEMORY WRITE READ
+class btb_mem_wr_rd_seq extends siv_pcie_tl_seq;
+  `uvm_object_utils(btb_mem_wr_rd_seq)
+  function new(string name="btb_mem_wr_rd_seq");
+    super.new(name);
+  endfunction
+  task body();
+  int addr_value,len_value;
+  begin
+    if(device_cfg.is_rc)begin
+//       `uvm_warning(get_type_name(),"///////////////////INSIDE TL SEQUENCE/////////////////////////////");
+      repeat(15) begin
+        `uvm_do_with(req, {req.pkt_type == 2;             //memory write
+                           req.header_mem.typef == 0;
+                           req.header_mem.fmt == 2;
+                           req.header_mem.td == 0;
+                           req.header_mem.tc == 0;
+                           req.header_mem.address1 inside {[32'h0000_1000:32'h0000_3000]};
+                           req.header_mem.len inside {[3:6]};
+                           req.payload_m.size() == req.header_mem.len;});
+
+      addr_value=req.header_mem.address1;
+      len_value=req.header_mem.len;
+//       `uvm_warning(get_type_name(),"///////////////////AFTER UVM DO/////////////////////////////");
+        `uvm_do_with(req, {req.pkt_type == 2;             //memory read
+                           req.header_mem.typef == 0;
+                           req.header_mem.fmt == 0;
+                           req.header_mem.td == 0;//ecrc not implemented
+                           req.header_mem.tc == 3;
+                           req.header_mem.address1 == addr_value;
+                           req.header_mem.len ==len_value;
+                           req.payload_m.size() == req.header_mem.len;
+                          });
+      end  
+//       `uvm_warning(get_type_name(),"///////////////////LAST UVM DO DONE/////////////////////////////");
+    end
+  end
+  endtask 
+endclass
 
 
 
 
-
+//Multiple cfg packets with RCB VALUE CHANGES
+//seq for write and read of the config packet
+class btb_config_wr_rd_seq extends siv_pcie_tl_seq;
+  `uvm_object_utils(btb_config_wr_rd_seq)
+  function new(string name="btb_config_wr_rd_seq");
+    super.new(name);
+  endfunction
+  task body();
+    //if device is rc it enter the loop and start sendin
+    if(device_cfg.is_rc) begin
+      for(int i=0;i<15;i++) begin
+        `uvm_do_with(req,{req.pkt_type == 1; // config write
+          				  req.header_config.typef == 4;
+                          req.header_config.fmt==2;
+                          req.header_config.len==1;
+                          req.header_config.td==1;
+                          req.header_config.first_dw=='hf;
+                          req.payload_c.size()==req.header_config.len;
+                          req.header_config.reg_no=='h50;
+                          if(i%2==0) req.payload_c[0]==16'h8888;
+                          else req.payload_c[0]==16'h8880;
+                          }); // this seq for the RCB purpose if 8880 == 64; 8888==128
+        `uvm_do_with(req,{ req.pkt_type == 1;// config read 
+                         req.header_config.typef == 4;
+                         req.header_config.fmt==0;
+                         req.header_config.td==1;
+                         req.header_config.first_dw=='hf;
+                         req.header_config.len==1;
+                         req.payload_c.size()== req.header_config.len;
+                         req.header_config.reg_no=='h50;
+                         });
+      end
+    end
+  endtask 
+endclass
 
 
 

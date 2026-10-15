@@ -34,9 +34,12 @@ class siv_pcie_tl_driver extends uvm_driver #(siv_pcie_tl_sequence_items);
   bit [63:0] address1;
   bit [31:0] ecrc;
 
-//   bit [31:0] tl_ep_getting_que[$];          // used to store the pkts in receiver side
+//   bit [31:0] tl_ep_getting_que[$];
+//fields to generate completion based on tags and requester id
+  bit [31:0] pkt_w_req_id_tag [$][int];          // used to store the pkts according to requester id
+  bit [31:0] pkt_w_comp_id_tag [$][int];          // used to store the pkts according to completer id
   bit [31:0] rx_cpl_pkt[$];          // used to store the cpl pkt
-
+//end of field
   // Memory read specific fields
   bit [3:0]  last_dw_be;             // Last DW Byte Enable
   bit [3:0]  first_dw_be;            // First DW Byte Enable
@@ -246,9 +249,9 @@ class siv_pcie_tl_driver extends uvm_driver #(siv_pcie_tl_sequence_items);
         if(((req.TLP_m[0][28:24]==5'b0 && req.TLP_m[0][30]== 1'b0)||req.TLP_c[0][28:24]== 4||req.TLP_i[0][28:24]== 2 || req.TLP_m[0][28:24]==12)&& req.pkt_type!=5) begin
           // Compute expected_splits based on req.header_mem.len and RCB
 
-          `uvm_info("here0",$sformatf("%0d",flag),UVM_NONE)
-          wait(flag==0);
-          `uvm_info("here0","here",UVM_NONE)
+          //`uvm_info("here0",$sformatf("%0d",flag),UVM_NONE)
+          //wait(flag==0);
+          //`uvm_info("here0","here",UVM_NONE)
 
           flag=1;
           if(device_cfg.get_rcb()) begin 

@@ -2,7 +2,7 @@
 # Usage (from repo root): bash sim/run_vcs.sh [TESTNAME]
 # Needs UVM_HOME pointing at a UVM 1.2 install (testbench.sv includes uvm_pkg.sv itself).
 set -e
-TEST=${1:-siv_pcie_base_test}
+TEST=${1:-btb_mem_wr_rd_test}
 : "${UVM_HOME:?Set UVM_HOME to your UVM 1.2 install}"
 mkdir -p sim/out
 vcs -full64 -sverilog -timescale=1ns/1ps -debug_access+all -kdb \

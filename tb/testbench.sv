@@ -150,7 +150,9 @@ endclass
 `include "siv_pcie_env.sv"
 `include "siv_pcie_base_test.sv"
 `include "siv_pcie_cfg0_test.sv"
+`include "siv_pcie_btb_cfg0_test.sv"
 `include "siv_pcie_io_test.sv"
+`include "siv_pcie_btb_mem_wr_rd_test.sv"
 
 //======================================================
 // Data Link Layer tests (tests/dl)
